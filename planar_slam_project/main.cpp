@@ -5,6 +5,8 @@
 #include <pcl/features/normal_3d.h>
 #include <pcl/filters/fast_bilateral.h>
 #include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/segmentation/organized_connected_component_segmentation.h>
+#include <pcl/segmentation/euclidean_cluster_comparator.h>
     
 int user_data;
     
@@ -27,8 +29,7 @@ main (int argc, char** arg)
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
     bilateral_filter.filter(*cloud);
 
-
-
+    std::cout << "Done bilateral filter." << std::endl;
     // Normal Estimation
     // Create the normal estimation class, and pass the input dataset to it
     pcl::NormalEstimation<pcl::PointXYZRGBA, pcl::Normal> normal_estimation;
@@ -48,6 +49,33 @@ main (int argc, char** arg)
     // Compute the features
     normal_estimation.compute (*cloud_normals);
 
+    std::cout << "Done normal estimation" << std::endl;
+
+//-------------------- Segmentation
+    pcl::PointCloud<pcl::Label>::Ptr labels_origin (new pcl::PointCloud<pcl::Label>);
+    labels_origin->points.resize(cloud->points.size());
+    std::cout << "Created " << labels_origin->points.size() << " labels" << std::endl;
+    for (int i = 0; i < labels_origin->points.size(); i++)
+      labels_origin->points[i].label = 1;
+    
+    std::vector<bool> plane_labels;
+    plane_labels.resize (cloud->points.size (), true);
+
+    pcl::EuclideanClusterComparator<pcl::PointXYZRGBA, pcl::Normal, pcl::Label>::Ptr comparator (new pcl::EuclideanClusterComparator<pcl::PointXYZRGBA, pcl::Normal, pcl::Label> ());
+    comparator->setInputCloud (cloud);
+//    comparator->setInputNormals (cloud_normals);
+    comparator->setLabels (labels_origin);
+    comparator->setExcludeLabels (plane_labels);
+    comparator->setDistanceThreshold (0.05f, false);
+    std::cout << "Done initialize comparator" << std::endl;
+    // Run segmentation
+    pcl::OrganizedConnectedComponentSegmentation<pcl::PointXYZRGBA, pcl::Label> segmentation(comparator);
+    pcl::PointCloud<pcl::Label> labels;
+    std::vector<pcl::PointIndices> region_indices;
+    segmentation.setInputCloud (cloud);
+    segmentation.segment (labels, region_indices);
+
+    std::cout << "Detected " << region_indices.size() << " planes" << std::endl;
 
     for (int i = 0; i < cloud_normals->points.size (); i++) {
 //      std::cout << "r  : " << cloud->points[i].r << " g: " << cloud->points[i].g << " b: " << cloud->points[i].b << std::endl;
