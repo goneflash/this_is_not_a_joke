@@ -3,6 +3,7 @@
 #include <pcl/io/io.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/features/normal_3d.h>
+#include <pcl/filters/fast_bilateral.h>
 #include <pcl/kdtree/kdtree_flann.h>
     
 int user_data;
@@ -11,11 +12,23 @@ int
 main (int argc, char** arg)
 {
     // Load data
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
-    pcl::io::loadPCDFile("../data/my_room/1.pcd", *cloud);
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_origin (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    pcl::io::loadPCDFile("../data/my_room/1.pcd", *cloud_origin);
     
     pcl::visualization::CloudViewer viewer("Cloud Viewer");
     
+    float sigma_s = 10.f, sigma_r = 0.1f;
+    pcl::FastBilateralFilter<pcl::PointXYZRGBA> bilateral_filter;
+    bilateral_filter.setInputCloud (cloud_origin);
+//    bilateral_filter.setHalfSize (sigma_s);
+//    bilateral_filter.setStdDev (sigma_r);
+    bilateral_filter.setSigmaS (sigma_s);
+    bilateral_filter.setSigmaR (sigma_r);
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    bilateral_filter.filter(*cloud);
+
+
+
     // Normal Estimation
     // Create the normal estimation class, and pass the input dataset to it
     pcl::NormalEstimation<pcl::PointXYZRGBA, pcl::Normal> normal_estimation;
