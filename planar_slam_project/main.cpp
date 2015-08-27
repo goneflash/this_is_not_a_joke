@@ -56,17 +56,17 @@ main (int argc, char** arg)
     labels_origin->points.resize(cloud->points.size());
     std::cout << "Created " << labels_origin->points.size() << " labels" << std::endl;
     for (int i = 0; i < labels_origin->points.size(); i++)
-      labels_origin->points[i].label = 1;
+      labels_origin->points[i].label = i;
     
     std::vector<bool> plane_labels;
-    plane_labels.resize (cloud->points.size (), true);
+    plane_labels.resize (cloud->points.size (), false);
 
     pcl::EuclideanClusterComparator<pcl::PointXYZRGBA, pcl::Normal, pcl::Label>::Ptr comparator (new pcl::EuclideanClusterComparator<pcl::PointXYZRGBA, pcl::Normal, pcl::Label> ());
     comparator->setInputCloud (cloud);
-//    comparator->setInputNormals (cloud_normals);
+    comparator->setInputNormals (cloud_normals);
     comparator->setLabels (labels_origin);
     comparator->setExcludeLabels (plane_labels);
-    comparator->setDistanceThreshold (0.05f, false);
+    comparator->setDistanceThreshold (0.01f, false);
     std::cout << "Done initialize comparator" << std::endl;
     // Run segmentation
     pcl::OrganizedConnectedComponentSegmentation<pcl::PointXYZRGBA, pcl::Label> segmentation(comparator);
@@ -77,15 +77,31 @@ main (int argc, char** arg)
 
     std::cout << "Detected " << region_indices.size() << " planes" << std::endl;
 
+    uint8_t label_color[6][3] = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 0}, {0, 255, 255}, {255, 255, 255}};
+    int large_plane = 0;
+    for (int i = 0; i < region_indices.size(); i++) {
+      std::cout << "Plane " << i << " has " << region_indices[i].indices.size() << " points" << std::endl;
+      if (large_plane > 5)
+        continue;
+      if (region_indices[i].indices.size() < 2000)
+        continue;
+      large_plane++;
+      for (int j = 0; j < region_indices[i].indices.size(); j++) {
+        int idx = region_indices[i].indices[j];
+        cloud->points[idx].r = label_color[large_plane][0];
+        cloud->points[idx].g = label_color[large_plane][1];
+        cloud->points[idx].b = label_color[large_plane][2];
+      }
+    }
+
+/*
     for (int i = 0; i < cloud_normals->points.size (); i++) {
-//      std::cout << "r  : " << cloud->points[i].r << " g: " << cloud->points[i].g << " b: " << cloud->points[i].b << std::endl;
-//      std::cout << "nx : " << cloud_normals->points[i].normal_x << " ny : " << cloud_normals->points[i].normal_y;
-//      std::cout << " nz : " << cloud_normals->points[i].normal_z << std::endl;
+      // Paint cloud using normal maps
       cloud->points[i].r = (uint8_t)((cloud_normals->points[i].normal_y + 1) / 2 * 255);
       cloud->points[i].g = (uint8_t)((cloud_normals->points[i].normal_x + 1) / 2 * 255);
       cloud->points[i].b = (uint8_t)((cloud_normals->points[i].normal_z + 1) / 2 * 255);
     }
-
+*/
     //blocks until the cloud is actually rendered
     viewer.showCloud(cloud);
     
