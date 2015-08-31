@@ -1,5 +1,7 @@
-#include <pcl/visualization/cloud_viewer.h>
 #include <iostream>
+#include <random>
+
+#include <pcl/visualization/cloud_viewer.h>
 #include <pcl/io/io.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/features/normal_3d.h>
@@ -20,7 +22,7 @@ main (int argc, char** arg)
     
     pcl::visualization::CloudViewer viewer("Cloud Viewer");
     
-    float sigma_s = 10.f, sigma_r = 0.2f;
+    float sigma_s = 10.f, sigma_r = 0.5f;
     pcl::FastBilateralFilter<pcl::PointXYZRGBA> bilateral_filter;
     bilateral_filter.setInputCloud (cloud_origin);
 //    bilateral_filter.setHalfSize (sigma_s);
@@ -87,22 +89,24 @@ main (int argc, char** arg)
 
     std::cout << "Detected " << region_indices.size() << " planes" << std::endl;
 
-    uint8_t label_color[6][3] = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 0}, {0, 255, 255}, {255, 255, 255}};
-    int large_plane = 0;
+    // Pick random color for each plane
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(1, 255);
+
     for (int i = 0; i < region_indices.size(); i++) {
-      if ( region_indices[i].indices.size() < 100 )
-        continue;
       std::cout << "Plane " << i << " has " << region_indices[i].indices.size() << " points" << std::endl;
-      if (large_plane > 5)
+      if (region_indices[i].indices.size() < 50)
         continue;
-      if (region_indices[i].indices.size() < 500)
-        continue;
-      large_plane++;
+      uint8_t r = dis(gen), g = dis(gen), b = dis(gen);
       for (int j = 0; j < region_indices[i].indices.size(); j++) {
         int idx = region_indices[i].indices[j];
-        cloud->points[idx].r = label_color[large_plane][0];
-        cloud->points[idx].g = label_color[large_plane][1];
-        cloud->points[idx].b = label_color[large_plane][2];
+        cloud->points[idx].r = r; 
+        cloud->points[idx].g = g;
+        cloud->points[idx].b = b;
+        //cloud->points[idx].r = label_color[large_plane][0];
+        //cloud->points[idx].g = label_color[large_plane][1];
+        //cloud->points[idx].b = label_color[large_plane][2];
       }
     }
 
