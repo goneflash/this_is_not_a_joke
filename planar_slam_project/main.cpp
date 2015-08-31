@@ -6,6 +6,7 @@
 #include <pcl/filters/fast_bilateral.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/segmentation/organized_connected_component_segmentation.h>
+#include <pcl/segmentation/euclidean_plane_coefficient_comparator.h>
 #include <pcl/segmentation/euclidean_cluster_comparator.h>
     
 int user_data;
@@ -19,7 +20,7 @@ main (int argc, char** arg)
     
     pcl::visualization::CloudViewer viewer("Cloud Viewer");
     
-    float sigma_s = 10.f, sigma_r = 0.1f;
+    float sigma_s = 10.f, sigma_r = 0.2f;
     pcl::FastBilateralFilter<pcl::PointXYZRGBA> bilateral_filter;
     bilateral_filter.setInputCloud (cloud_origin);
 //    bilateral_filter.setHalfSize (sigma_s);
@@ -44,7 +45,7 @@ main (int argc, char** arg)
     pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
 
     // Use all neighbors in a sphere of radius 3cm
-    normal_estimation.setRadiusSearch (0.03);
+    normal_estimation.setRadiusSearch (0.05);
 
     // Compute the features
     normal_estimation.compute (*cloud_normals);
@@ -68,8 +69,17 @@ main (int argc, char** arg)
     comparator->setExcludeLabels (plane_labels);
     comparator->setDistanceThreshold (0.01f, false);
     std::cout << "Done initialize comparator" << std::endl;
+
+    pcl::EuclideanPlaneCoefficientComparator<pcl::PointXYZRGBA, pcl::Normal>::Ptr plane_comparator (new pcl::EuclideanPlaneCoefficientComparator<pcl::PointXYZRGBA, pcl::Normal> ());
+    plane_comparator->setInputCloud (cloud);
+    plane_comparator->setInputNormals (cloud_normals);
+    plane_comparator->setDistanceThreshold (0.02f, false);
+    plane_comparator->setAngularThreshold( pcl::deg2rad (2.0f) );
+ 
     // Run segmentation
-    pcl::OrganizedConnectedComponentSegmentation<pcl::PointXYZRGBA, pcl::Label> segmentation(comparator);
+//    pcl::OrganizedConnectedComponentSegmentation<pcl::PointXYZRGBA, pcl::Label> segmentation(comparator);
+    pcl::OrganizedConnectedComponentSegmentation<pcl::PointXYZRGBA, pcl::Label> segmentation(plane_comparator);
+  
     pcl::PointCloud<pcl::Label> labels;
     std::vector<pcl::PointIndices> region_indices;
     segmentation.setInputCloud (cloud);
@@ -80,10 +90,12 @@ main (int argc, char** arg)
     uint8_t label_color[6][3] = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 0}, {0, 255, 255}, {255, 255, 255}};
     int large_plane = 0;
     for (int i = 0; i < region_indices.size(); i++) {
+      if ( region_indices[i].indices.size() < 100 )
+        continue;
       std::cout << "Plane " << i << " has " << region_indices[i].indices.size() << " points" << std::endl;
       if (large_plane > 5)
         continue;
-      if (region_indices[i].indices.size() < 2000)
+      if (region_indices[i].indices.size() < 500)
         continue;
       large_plane++;
       for (int j = 0; j < region_indices[i].indices.size(); j++) {
