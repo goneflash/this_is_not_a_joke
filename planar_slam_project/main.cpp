@@ -1,17 +1,24 @@
 #include <iostream>
 #include <random>
 
-#include <pcl/visualization/cloud_viewer.h>
-#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/common/transforms.h>
+#include <pcl/common/time.h>
 #include <pcl/io/io.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/filters/fast_bilateral.h>
 #include <pcl/kdtree/kdtree_flann.h>
-#include <pcl/segmentation/organized_connected_component_segmentation.h>
-#include <pcl/segmentation/euclidean_plane_coefficient_comparator.h>
+#include <pcl/segmentation/edge_aware_plane_comparator.h>
 #include <pcl/segmentation/euclidean_cluster_comparator.h>
-    
+#include <pcl/segmentation/euclidean_plane_coefficient_comparator.h>
+#include <pcl/segmentation/organized_connected_component_segmentation.h>
+#include <pcl/segmentation/organized_multi_plane_segmentation.h>
+#include <pcl/segmentation/planar_polygon_fusion.h>
+#include <pcl/segmentation/plane_coefficient_comparator.h>
+#include <pcl/segmentation/rgb_plane_coefficient_comparator.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/visualization/pcl_visualizer.h>
+   
 int user_data;
     
 int 
@@ -55,7 +62,59 @@ main (int argc, char** arg)
 
     std::cout << "Done normal estimation" << std::endl;
 
-//-------------------- Segmentation
+
+    pcl::OrganizedMultiPlaneSegmentation<pcl::PointXYZRGBA, pcl::Normal, pcl::Label> mps;
+    // Set up Organized Multi Plane Segmentation
+    double mps_start = pcl::getTime ();
+
+    mps.setMinInliers (100);
+    mps.setAngularThreshold (pcl::deg2rad (2.0)); //3 degrees
+    mps.setDistanceThreshold (0.02); //2cm
+
+    mps.setInputNormals (cloud_normals);
+    mps.setInputCloud (cloud);
+
+    std::vector<pcl::PlanarRegion<pcl::PointXYZRGBA>, Eigen::aligned_allocator<pcl::PlanarRegion<pcl::PointXYZRGBA> > > regions;
+    std::vector<pcl::ModelCoefficients> model_coefficients;
+    std::vector<pcl::PointIndices> inlier_indices;  
+    pcl::PointCloud<pcl::Label>::Ptr labels (new pcl::PointCloud<pcl::Label>);
+    std::vector<pcl::PointIndices> label_indices;
+    std::vector<pcl::PointIndices> boundary_indices;
+
+    bool use_planar_refinement_ = true;
+    if (use_planar_refinement_) {
+      mps.segmentAndRefine (regions, model_coefficients, inlier_indices, labels, label_indices, boundary_indices);
+    } else {
+      mps.segment (regions);//, model_coefficients, inlier_indices, labels, label_indices, boundary_indices);
+    }
+
+    double mps_end = pcl::getTime ();
+    std::cout << "MPS+Refine took: " << double(mps_end - mps_start) << std::endl;
+
+    // Pick random color for each plane
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(1, 255);
+
+    for (int i = 0; i < label_indices.size(); i++) {
+      if (label_indices[i].indices.size() < 100)
+        continue;
+      std::cout << "Plane " << i << " has " << label_indices[i].indices.size() << " points" << std::endl;
+      if (label_indices[i].indices.size() < 50)
+        continue;
+      uint8_t r = dis(gen), g = dis(gen), b = dis(gen);
+      for (int j = 0; j < label_indices[i].indices.size(); j++) {
+        int idx = label_indices[i].indices[j];
+        cloud->points[idx].r = r;
+        cloud->points[idx].g = g;
+        cloud->points[idx].b = b;
+        //cloud->points[idx].r = label_color[large_plane][0];
+        //cloud->points[idx].g = label_color[large_plane][1];
+        //cloud->points[idx].b = label_color[large_plane][2];
+      }
+    }
+
+//-------------------- Coarse Segmentation
     pcl::PointCloud<pcl::Label>::Ptr labels_origin (new pcl::PointCloud<pcl::Label>);
     labels_origin->points.resize(cloud->points.size());
     std::cout << "Created " << labels_origin->points.size() << " labels" << std::endl;
@@ -83,19 +142,16 @@ main (int argc, char** arg)
 //    pcl::OrganizedConnectedComponentSegmentation<pcl::PointXYZRGBA, pcl::Label> segmentation(comparator);
     pcl::OrganizedConnectedComponentSegmentation<pcl::PointXYZRGBA, pcl::Label> segmentation(plane_comparator);
   
-    pcl::PointCloud<pcl::Label> labels;
+    pcl::PointCloud<pcl::Label> labels_final;
     std::vector<pcl::PointIndices> region_indices;
     segmentation.setInputCloud (cloud);
-    segmentation.segment (labels, region_indices);
+    segmentation.segment (labels_final, region_indices);
 
     std::cout << "Detected " << region_indices.size() << " planes" << std::endl;
-
-    // Pick random color for each plane
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(1, 255);
-
+/*
     for (int i = 0; i < region_indices.size(); i++) {
+      if (region_indices[i].indices.size() < 10)
+        continue;
       std::cout << "Plane " << i << " has " << region_indices[i].indices.size() << " points" << std::endl;
       if (region_indices[i].indices.size() < 50)
         continue;
@@ -110,7 +166,7 @@ main (int argc, char** arg)
         //cloud->points[idx].b = label_color[large_plane][2];
       }
     }
-    
+*/    
     // Create Viewport to display segmentation results
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("Viewer"));
     int view1(0);
