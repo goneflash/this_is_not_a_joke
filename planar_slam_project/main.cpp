@@ -55,7 +55,7 @@ main (int argc, char** arg)
     pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
 
     // Use all neighbors in a sphere of radius 3cm
-    normal_estimation.setRadiusSearch (0.05);
+    normal_estimation.setRadiusSearch (0.08);
 
     // Compute the features
     normal_estimation.compute (*cloud_normals);
