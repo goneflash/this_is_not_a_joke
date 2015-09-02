@@ -2,6 +2,7 @@
 #include <random>
 
 #include <pcl/visualization/cloud_viewer.h>
+#include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/io/io.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/features/normal_3d.h>
@@ -20,7 +21,7 @@ main (int argc, char** arg)
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_origin (new pcl::PointCloud<pcl::PointXYZRGBA>);
     pcl::io::loadPCDFile("../data/my_room/1.pcd", *cloud_origin);
     
-    pcl::visualization::CloudViewer viewer("Cloud Viewer");
+    //pcl::visualization::CloudViewer viewer("Cloud Viewer");
     
     float sigma_s = 10.f, sigma_r = 0.5f;
     pcl::FastBilateralFilter<pcl::PointXYZRGBA> bilateral_filter;
@@ -119,10 +120,24 @@ main (int argc, char** arg)
     }
 */
     //blocks until the cloud is actually rendered
-    viewer.showCloud(cloud);
+/*    viewer.showCloud(cloud);
     
     while (!viewer.wasStopped ()) {
       user_data++;
     }
+*/
+  //--------------------
+  // -----Main loop-----
+  //--------------------
+  boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("Viewer"));
+  pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBA> rgb(cloud);
+  viewer->addPointCloud<pcl::PointXYZRGBA> (cloud, rgb, "sample cloud");
+
+  while (!viewer->wasStopped ())
+  {
+    viewer->spinOnce (100);
+    boost::this_thread::sleep (boost::posix_time::microseconds (100000));
+  }
+
     return 0;
 }
