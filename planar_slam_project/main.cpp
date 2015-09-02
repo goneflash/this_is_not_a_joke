@@ -110,15 +110,29 @@ main (int argc, char** arg)
         //cloud->points[idx].b = label_color[large_plane][2];
       }
     }
+    
+    // Create Viewport to display segmentation results
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("Viewer"));
+    int view1(0);
+    viewer->createViewPort(0.0, 0.0, 0.5, 1.0, view1);
+    viewer->addText("Radius: 0.01", 10, 10, "v1 text", view1); 
+    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBA> rgb(cloud);
+    viewer->addPointCloud<pcl::PointXYZRGBA> (cloud, rgb, "segmented cloud", view1);
 
-/*
+    // Create Viewport to display Normal results
+    // Get color of normal
     for (int i = 0; i < cloud_normals->points.size (); i++) {
       // Paint cloud using normal maps
       cloud->points[i].r = (uint8_t)((cloud_normals->points[i].normal_y + 1) / 2 * 255);
       cloud->points[i].g = (uint8_t)((cloud_normals->points[i].normal_x + 1) / 2 * 255);
       cloud->points[i].b = (uint8_t)((cloud_normals->points[i].normal_z + 1) / 2 * 255);
     }
-*/
+    int view2(0);
+    viewer->createViewPort(0.5, 0.0, 1.0, 1.0, view2);
+    viewer->addText("Radius: 0.01", 10, 10, "v2 text", view2); 
+    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBA> normal_rgb(cloud);
+    viewer->addPointCloud<pcl::PointXYZRGBA> (cloud, normal_rgb, "cloud normal", view2);
+
     //blocks until the cloud is actually rendered
 /*    viewer.showCloud(cloud);
     
@@ -126,18 +140,11 @@ main (int argc, char** arg)
       user_data++;
     }
 */
-  //--------------------
-  // -----Main loop-----
-  //--------------------
-  boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("Viewer"));
-  pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBA> rgb(cloud);
-  viewer->addPointCloud<pcl::PointXYZRGBA> (cloud, rgb, "sample cloud");
-
-  while (!viewer->wasStopped ())
-  {
-    viewer->spinOnce (100);
-    boost::this_thread::sleep (boost::posix_time::microseconds (100000));
-  }
+    // -----Main loop-----
+    while (!viewer->wasStopped ()) {
+      viewer->spinOnce (100);
+      boost::this_thread::sleep (boost::posix_time::microseconds (100000));
+    }
 
     return 0;
 }
