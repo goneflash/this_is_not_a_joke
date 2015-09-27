@@ -7,6 +7,7 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/filters/fast_bilateral.h>
+#include <pcl/filters/voxel_grid.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/segmentation/edge_aware_plane_comparator.h>
 #include <pcl/segmentation/euclidean_cluster_comparator.h>
@@ -39,6 +40,14 @@ main (int argc, char** arg)
     bilateral_filter.filter(*cloud);
 
     std::cout << "Done bilateral filter." << std::endl;
+/*
+    std::cout << "Doing voxelgrid ..." << std::endl;
+    pcl::VoxelGrid<pcl::PointXYZRGBA> voxel_grid;
+    voxel_grid.setInputCloud (cloud);
+    voxel_grid.setLeafSize (0.5, 0.5, 0.5);
+    voxel_grid.filter(*cloud);
+*/
+
     // Normal Estimation
     // Create the normal estimation class, and pass the input dataset to it
     pcl::NormalEstimation<pcl::PointXYZRGBA, pcl::Normal> normal_estimation;
