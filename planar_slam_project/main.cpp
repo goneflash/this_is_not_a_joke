@@ -19,8 +19,6 @@
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/visualization/pcl_visualizer.h>
    
-int user_data;
-    
 int 
 main (int argc, char** arg)
 {
