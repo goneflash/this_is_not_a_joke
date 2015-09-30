@@ -9,6 +9,7 @@
 #include <pcl/filters/fast_bilateral.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/registration/icp.h>
 #include <pcl/segmentation/edge_aware_plane_comparator.h>
 #include <pcl/segmentation/euclidean_cluster_comparator.h>
 #include <pcl/segmentation/euclidean_plane_coefficient_comparator.h>
@@ -24,14 +25,120 @@ int
 main (int argc, char** arg)
 {
     // Load data
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_origin (new pcl::PointCloud<pcl::PointXYZRGBA>);
-    pcl::io::loadPCDFile("../data/my_room/1.pcd", *cloud_origin);
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_1_origin (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_2_origin (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    pcl::io::loadPCDFile("../data/my_room/1.pcd", *cloud_1_origin);
+    pcl::io::loadPCDFile("../data/my_room/2.pcd", *cloud_2_origin);
+
+    for (size_t i = 0; i < cloud_2_origin->points.size (); ++i) {
+      cloud_2_origin->points[i].x = cloud_2_origin->points[i].x + 0.6f;
+      cloud_2_origin->points[i].y = cloud_2_origin->points[i].y + 0.9f;
+    }
     
+   std::cout << "Transformed " << cloud_2_origin->points.size() << " points" << std::endl;
+    
+// Do ICP
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr c1 (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr c2 (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    c1->width    = cloud_1_origin->width;
+    c1->height   = cloud_1_origin->height;
+    c1->is_dense = cloud_1_origin->is_dense;
+    c1->points.resize (c1->width * c1->height);
+
+    for (size_t i = 0; i < c1->points.size (); ++i) {
+      c1->points[i].x = cloud_1_origin->points[i].x;
+      c1->points[i].y = cloud_1_origin->points[i].y;
+      c1->points[i].z = cloud_1_origin->points[i].z;
+    }
+
+    std::cout << "Doing voxelgrid ..." << std::endl;
+    pcl::VoxelGrid<pcl::PointXYZRGBA> voxel_grid;
+    voxel_grid.setInputCloud (c1);
+    voxel_grid.setLeafSize (0.05, 0.05, 0.05);
+    voxel_grid.filter(*c1);
+
+    *c2 = *c1;
+    for (size_t i = 0; i < c2->points.size (); ++i) {
+      c2->points[i].x += 1.0f;
+      c2->points[i].y += 0.5f;
+      c2->points[i].z += 0.7f;
+    }
+    std::cout << "Copied cloud to c1, c2\n";
+
+    pcl::IterativeClosestPoint<pcl::PointXYZRGBA, pcl::PointXYZRGBA> icp;
+    icp.setTransformationEpsilon (1e-6);
+ //   icp.setMaxCorrespondenceDistance (1.0);
+    icp.setInputSource(c1);
+    icp.setInputTarget(c2);
+
+    pcl::PointCloud<pcl::PointXYZRGBA> Final;
+    icp.align(Final);
+    std::cout << "has converged:" << icp.hasConverged() << " score: " <<
+    icp.getFitnessScore() << std::endl;
+    std::cout << icp.getFinalTransformation() << std::endl;
+
+    pcl::visualization::PCLVisualizer *p;
+    p = new pcl::visualization::PCLVisualizer ("Registration");
+    int vp_1, vp_2;
+    p->createViewPort (0.0, 0, 0.5, 1.0, vp_1);
+    p->createViewPort (0.5, 0, 1.0, 1.0, vp_2);
+
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGBA> tgt_h (c2, 0, 255, 0);
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGBA> src_h (c1, 255, 0, 0);
+    p->addPointCloud (c2, tgt_h, "vp1_target", vp_1);
+    p->addPointCloud (c1, src_h, "vp1_source", vp_1);
+
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr output (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    pcl::transformPointCloud (*c1, *output, icp.getFinalTransformation()); 
+
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGBA> cloud_tgt_h (c2, 0, 255, 0);
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGBA> cloud_src_h (output, 255, 0, 0);
+    p->addPointCloud (c2, cloud_tgt_h, "target", vp_2);
+    p->addPointCloud (output, cloud_src_h, "source", vp_2);
+    p->spin();
+
+// Do ICP Non Linear
+/*
+    pcl::PointCloud<pcl::PointNormal>::Ptr src (new pcl::PointCloud<pcl::PointNormal> ());
+    pcl::PointCloud<pcl::PointNormal>::Ptr tgt (new pcl::PointCloud<pcl::PointNormal> ());
+
+//    PointCloudWithNormals::Ptr points_with_normals_src (new PointCloudWithNormals);
+//    PointCloudWithNormals::Ptr points_with_normals_tgt (new PointCloudWithNormals);
+    pcl::NormalEstimation<pcl::PointXYZRGBA, pcl::PointNormal> norm_est;
+    pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr kdtree (new pcl::search::KdTree<pcl::PointXYZRGBA> ());
+    norm_est.setSearchMethod (kdtree);
+    norm_est.setKSearch (30);
+
+    norm_est.setInputCloud (src);
+    norm_est.compute (*points_with_normals_src);
+    pcl::copyPointCloud (*src, *points_with_normals_src);
+
+    norm_est.setInputCloud (tgt);
+    norm_est.compute (*points_with_normals_tgt);
+    pcl::copyPointCloud (*tgt, *points_with_normals_tgt);
+ 
+    pcl::NormalEstimation<pcl::, PointNormalT> norm_est;
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
+    norm_est.setSearchMethod (tree);
+    norm_est.setKSearch (30);
+  
+    norm_est.setInputCloud (src);
+    norm_est.compute (*points_with_normals_src);
+    pcl::copyPointCloud (*src, *points_with_normals_src);
+
+    norm_est.setInputCloud (tgt);
+    norm_est.compute (*points_with_normals_tgt);
+    pcl::copyPointCloud (*tgt, *points_with_normals_tgt);
+*/
+
+// ------------------------------------------
+
+
     //pcl::visualization::CloudViewer viewer("Cloud Viewer");
     
     float sigma_s = 10.f, sigma_r = 0.5f;
     pcl::FastBilateralFilter<pcl::PointXYZRGBA> bilateral_filter;
-    bilateral_filter.setInputCloud (cloud_origin);
+    bilateral_filter.setInputCloud (cloud_1_origin);
 //    bilateral_filter.setHalfSize (sigma_s);
 //    bilateral_filter.setStdDev (sigma_r);
     bilateral_filter.setSigmaS (sigma_s);
