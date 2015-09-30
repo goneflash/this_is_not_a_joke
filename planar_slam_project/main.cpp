@@ -69,8 +69,16 @@ main (int argc, char** arg)
 // Do Normal ICP
 /*
     pcl::IterativeClosestPoint<pcl::PointXYZRGBA, pcl::PointXYZRGBA> icp;
-    icp.setTransformationEpsilon (1e-6);
-    //icp.setMaxCorrespondenceDistance (0.1);
+
+    // Set the max correspondence distance to 5cm (e.g., correspondences with higher distances will be ignored)
+    icp.setMaxCorrespondenceDistance (0.05);
+    // Set the maximum number of iterations (criterion 1)
+    icp.setMaximumIterations (50);
+    // Set the transformation epsilon (criterion 2)
+    icp.setTransformationEpsilon (1e-8);
+    // Set the euclidean distance difference epsilon (criterion 3)
+    icp.setEuclideanFitnessEpsilon (1);
+
     icp.setInputSource(c1);
     icp.setInputTarget(c2);
 
@@ -99,7 +107,18 @@ main (int argc, char** arg)
     pcl::copyPointCloud (*c2, *points_with_normals_tgt);
  
     pcl::IterativeClosestPointNonLinear<pcl::PointNormal, pcl::PointNormal> icp;
+    //icp.setTransformationEpsilon (1e-6);
+
+    // Set the max correspondence distance to 5cm (e.g., correspondences with higher distances will be ignored)
+    //icp.setMaxCorrespondenceDistance (0.1);
+    // Set the maximum number of iterations (criterion 1)
+    //icp.setMaximumIterations (50);
+    // Set the transformation epsilon (criterion 2)
     icp.setTransformationEpsilon (1e-6);
+    // Set the euclidean distance difference epsilon (criterion 3)
+    //icp.setEuclideanFitnessEpsilon (1);
+
+
     //icp.setMaxCorrespondenceDistance (0.1);
     //reg.setPointRepresentation (boost::make_shared<const MyPointRepresentation> (point_representation));
 
