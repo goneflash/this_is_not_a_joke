@@ -112,9 +112,9 @@ main (int argc, char** arg)
     // Set the max correspondence distance to 5cm (e.g., correspondences with higher distances will be ignored)
     //icp.setMaxCorrespondenceDistance (0.1);
     // Set the maximum number of iterations (criterion 1)
-    //icp.setMaximumIterations (50);
+    icp.setMaximumIterations (100);
     // Set the transformation epsilon (criterion 2)
-    icp.setTransformationEpsilon (1e-6);
+    icp.setTransformationEpsilon (1e-9);
     // Set the euclidean distance difference epsilon (criterion 3)
     //icp.setEuclideanFitnessEpsilon (1);
 
