@@ -10,6 +10,7 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/registration/icp.h>
+#include <pcl/registration/icp_nl.h>
 #include <pcl/segmentation/edge_aware_plane_comparator.h>
 #include <pcl/segmentation/euclidean_cluster_comparator.h>
 #include <pcl/segmentation/euclidean_plane_coefficient_comparator.h>
@@ -65,14 +66,50 @@ main (int argc, char** arg)
     }
     std::cout << "Copied cloud to c1, c2\n";
 
+// Do Normal ICP
+/*
     pcl::IterativeClosestPoint<pcl::PointXYZRGBA, pcl::PointXYZRGBA> icp;
     icp.setTransformationEpsilon (1e-6);
- //   icp.setMaxCorrespondenceDistance (1.0);
+    //icp.setMaxCorrespondenceDistance (0.1);
     icp.setInputSource(c1);
     icp.setInputTarget(c2);
 
     pcl::PointCloud<pcl::PointXYZRGBA> Final;
     icp.align(Final);
+*/
+
+// Do ICP Non Linear
+
+    pcl::PointCloud<pcl::PointNormal>::Ptr points_with_normals_src (new pcl::PointCloud<pcl::PointNormal> ());
+    pcl::PointCloud<pcl::PointNormal>::Ptr points_with_normals_tgt (new pcl::PointCloud<pcl::PointNormal> ());
+
+//    PointCloudWithNormals::Ptr points_with_normals_src (new PointCloudWithNormals);
+//    PointCloudWithNormals::Ptr points_with_normals_tgt (new PointCloudWithNormals);
+    pcl::NormalEstimation<pcl::PointXYZRGBA, pcl::PointNormal> norm_est;
+    pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr kdtree (new pcl::search::KdTree<pcl::PointXYZRGBA> ());
+    norm_est.setSearchMethod (kdtree);
+    norm_est.setKSearch (30);
+
+    norm_est.setInputCloud (c1);
+    norm_est.compute (*points_with_normals_src);
+    pcl::copyPointCloud (*c1, *points_with_normals_src);
+
+    norm_est.setInputCloud (c2);
+    norm_est.compute (*points_with_normals_tgt);
+    pcl::copyPointCloud (*c2, *points_with_normals_tgt);
+ 
+    pcl::IterativeClosestPointNonLinear<pcl::PointNormal, pcl::PointNormal> icp;
+    icp.setTransformationEpsilon (1e-6);
+    //icp.setMaxCorrespondenceDistance (0.1);
+    //reg.setPointRepresentation (boost::make_shared<const MyPointRepresentation> (point_representation));
+
+    icp.setInputSource (points_with_normals_src);
+    icp.setInputTarget (points_with_normals_tgt);
+
+    pcl::PointCloud<pcl::PointNormal> Final;
+    icp.align(Final);
+
+//  Visualize ICP
     std::cout << "has converged:" << icp.hasConverged() << " score: " <<
     icp.getFitnessScore() << std::endl;
     std::cout << icp.getFinalTransformation() << std::endl;
@@ -96,40 +133,6 @@ main (int argc, char** arg)
     p->addPointCloud (c2, cloud_tgt_h, "target", vp_2);
     p->addPointCloud (output, cloud_src_h, "source", vp_2);
     p->spin();
-
-// Do ICP Non Linear
-/*
-    pcl::PointCloud<pcl::PointNormal>::Ptr src (new pcl::PointCloud<pcl::PointNormal> ());
-    pcl::PointCloud<pcl::PointNormal>::Ptr tgt (new pcl::PointCloud<pcl::PointNormal> ());
-
-//    PointCloudWithNormals::Ptr points_with_normals_src (new PointCloudWithNormals);
-//    PointCloudWithNormals::Ptr points_with_normals_tgt (new PointCloudWithNormals);
-    pcl::NormalEstimation<pcl::PointXYZRGBA, pcl::PointNormal> norm_est;
-    pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr kdtree (new pcl::search::KdTree<pcl::PointXYZRGBA> ());
-    norm_est.setSearchMethod (kdtree);
-    norm_est.setKSearch (30);
-
-    norm_est.setInputCloud (src);
-    norm_est.compute (*points_with_normals_src);
-    pcl::copyPointCloud (*src, *points_with_normals_src);
-
-    norm_est.setInputCloud (tgt);
-    norm_est.compute (*points_with_normals_tgt);
-    pcl::copyPointCloud (*tgt, *points_with_normals_tgt);
- 
-    pcl::NormalEstimation<pcl::, PointNormalT> norm_est;
-    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
-    norm_est.setSearchMethod (tree);
-    norm_est.setKSearch (30);
-  
-    norm_est.setInputCloud (src);
-    norm_est.compute (*points_with_normals_src);
-    pcl::copyPointCloud (*src, *points_with_normals_src);
-
-    norm_est.setInputCloud (tgt);
-    norm_est.compute (*points_with_normals_tgt);
-    pcl::copyPointCloud (*tgt, *points_with_normals_tgt);
-*/
 
 // ------------------------------------------
 
