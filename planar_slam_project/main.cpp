@@ -1,6 +1,8 @@
 #include <iostream>
 #include <random>
 
+// #define VIZ
+
 #include <pcl/common/transforms.h>
 #include <pcl/common/time.h>
 #include <pcl/io/io.h>
@@ -19,9 +21,12 @@
 #include <pcl/segmentation/planar_polygon_fusion.h>
 #include <pcl/segmentation/plane_coefficient_comparator.h>
 #include <pcl/segmentation/rgb_plane_coefficient_comparator.h>
-#include <pcl/visualization/cloud_viewer.h>
-#include <pcl/visualization/pcl_visualizer.h>
-   
+
+#ifdef VIZ
+  #include <pcl/visualization/cloud_viewer.h>
+  #include <pcl/visualization/pcl_visualizer.h>
+#endif
+ 
 int 
 main (int argc, char** arg)
 {
@@ -114,7 +119,7 @@ main (int argc, char** arg)
     // Set the maximum number of iterations (criterion 1)
     icp.setMaximumIterations (100);
     // Set the transformation epsilon (criterion 2)
-    icp.setTransformationEpsilon (1e-9);
+    icp.setTransformationEpsilon (1e-10);
     // Set the euclidean distance difference epsilon (criterion 3)
     //icp.setEuclideanFitnessEpsilon (1);
 
@@ -133,6 +138,7 @@ main (int argc, char** arg)
     icp.getFitnessScore() << std::endl;
     std::cout << icp.getFinalTransformation() << std::endl;
 
+#ifdef VIZ
     pcl::visualization::PCLVisualizer *p;
     p = new pcl::visualization::PCLVisualizer ("Registration");
     int vp_1, vp_2;
@@ -152,6 +158,7 @@ main (int argc, char** arg)
     p->addPointCloud (c2, cloud_tgt_h, "target", vp_2);
     p->addPointCloud (output, cloud_src_h, "source", vp_2);
     p->spin();
+#endif
 
 // ------------------------------------------
 
@@ -303,6 +310,7 @@ main (int argc, char** arg)
       }
     }
 */    
+#ifdef VIZ
     // Create Viewport to display segmentation results
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("Viewer"));
     int view1(0);
@@ -337,6 +345,7 @@ main (int argc, char** arg)
       viewer->spinOnce (100);
       boost::this_thread::sleep (boost::posix_time::microseconds (100000));
     }
+#endif
 
     return 0;
 }
