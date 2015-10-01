@@ -1,7 +1,7 @@
 #include <iostream>
 #include <random>
 
-// #define VIZ
+#define VIZ
 
 #include <pcl/common/transforms.h>
 #include <pcl/common/time.h>
@@ -119,7 +119,7 @@ main (int argc, char** arg)
     // Set the maximum number of iterations (criterion 1)
     icp.setMaximumIterations (100);
     // Set the transformation epsilon (criterion 2)
-    icp.setTransformationEpsilon (1e-10);
+    icp.setTransformationEpsilon (1e-7);
     // Set the euclidean distance difference epsilon (criterion 3)
     //icp.setEuclideanFitnessEpsilon (1);
 
@@ -255,6 +255,28 @@ main (int argc, char** arg)
     std::cout << "Found " << label_indices.size() << " planes " << std::endl;
     std::cout << "Found " << model_coefficients.size() << " models" << std::endl;
     std::cout << "Found " << regions.size() << " regions" << std::endl;
+
+// Print plane information
+    for (size_t i = 0; i < regions.size (); i++) {
+      Eigen::Vector3f centroid = regions[i].getCentroid ();
+      Eigen::Vector4f model = regions[i].getCoefficients ();
+      pcl::PointCloud<pcl::PointXYZRGBA> boundary_cloud;
+      boundary_cloud.points = regions[i].getContour ();
+      printf ("Centroid: (%f, %f, %f)\n  Coefficients: (%f, %f, %f, %f)\n Inliers: %d %d\n",
+          centroid[0], centroid[1], centroid[2],
+          model[0], model[1], model[2], model[3],
+          boundary_cloud.points.size (), inlier_indices[i].indices.size());
+      uint8_t r = dis(gen), g = dis(gen), b = dis(gen);
+      for (int j = 0; j < inlier_indices[i].indices.size(); ++j) {
+        int idx = inlier_indices[i].indices[j];
+        cloud->points[idx].r = r;
+        cloud->points[idx].g = g;
+        cloud->points[idx].b = b;        
+      }
+    }
+
+/*    
+// All segmentations
     for (int i = 0; i < label_indices.size(); i++) {
       if (label_indices[i].indices.size() < 200)
         continue;
@@ -279,7 +301,7 @@ main (int argc, char** arg)
         //cloud->points[idx].b = label_color[large_plane][2];
       }
     }
-
+*/
 //-------------------- Coarse Segmentation
     pcl::PointCloud<pcl::Label>::Ptr labels_origin (new pcl::PointCloud<pcl::Label>);
     labels_origin->points.resize(cloud->points.size());
