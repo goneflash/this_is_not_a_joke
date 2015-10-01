@@ -136,7 +136,12 @@ main (int argc, char** arg)
 //  Visualize ICP
     std::cout << "has converged:" << icp.hasConverged() << " score: " <<
     icp.getFitnessScore() << std::endl;
+    std::cout << "Final cloud has " << Final.points.size() << " points.\n";
     std::cout << icp.getFinalTransformation() << std::endl;
+
+    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr output (new pcl::PointCloud<pcl::PointXYZRGBA>);
+    pcl::transformPointCloud (*c1, *output, icp.getFinalTransformation()); 
+
 
 #ifdef VIZ
     pcl::visualization::PCLVisualizer *p;
@@ -150,9 +155,6 @@ main (int argc, char** arg)
     p->addPointCloud (c2, tgt_h, "vp1_target", vp_1);
     p->addPointCloud (c1, src_h, "vp1_source", vp_1);
 
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr output (new pcl::PointCloud<pcl::PointXYZRGBA>);
-    pcl::transformPointCloud (*c1, *output, icp.getFinalTransformation()); 
-
     pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGBA> cloud_tgt_h (c2, 0, 255, 0);
     pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGBA> cloud_src_h (output, 255, 0, 0);
     p->addPointCloud (c2, cloud_tgt_h, "target", vp_2);
@@ -160,8 +162,19 @@ main (int argc, char** arg)
     p->spin();
 #endif
 
-// ------------------------------------------
 
+// -------------------------------------------
+//  add point to a single one
+   std::cout << "points before " << c2->points.size() << std::endl;
+   *c2 += *output; 
+   std::cout << "points after " << c2->points.size() << std::endl;
+
+   voxel_grid.setInputCloud (c2);
+   voxel_grid.setLeafSize (0.05, 0.05, 0.05);
+   voxel_grid.filter(*c2);
+   std::cout << "points after " << c2->points.size() << std::endl;
+
+// ------------------------------------------
 
     //pcl::visualization::CloudViewer viewer("Cloud Viewer");
     
@@ -239,10 +252,20 @@ main (int argc, char** arg)
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(1, 255);
 
+    std::cout << "Found " << label_indices.size() << " planes " << std::endl;
+    std::cout << "Found " << model_coefficients.size() << " models" << std::endl;
+    std::cout << "Found " << regions.size() << " regions" << std::endl;
     for (int i = 0; i < label_indices.size(); i++) {
-      if (label_indices[i].indices.size() < 100)
+      if (label_indices[i].indices.size() < 200)
         continue;
       std::cout << "Plane " << i << " has " << label_indices[i].indices.size() << " points" << std::endl;
+
+      std::cout << "Plane Coefficient: \n";
+      Eigen::Vector4f model = regions[i].getCoefficients();
+      for (int j = 0; j < model.size(); j++)
+        std::cout << model[j] << "  ";
+      std::cout << std::endl;
+
       if (label_indices[i].indices.size() < 50)
         continue;
       uint8_t r = dis(gen), g = dis(gen), b = dis(gen);
