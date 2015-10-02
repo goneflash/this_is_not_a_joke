@@ -47,8 +47,7 @@ Data:
 int main (int argc, char** arg) {
   // Global Model
   pcl::PointCloud<pcl::PointXYZRGBA>::Ptr global_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
-  pcl::PointCloud<pcl::PointXYZRGBA>::Ptr last_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
-  pcl::PointCloud<pcl::PointNormal>::Ptr  last_cloud_with_normal (new pcl::PointCloud<pcl::PointNormal> ());
+  pcl::PointCloud<pcl::PointNormal>::Ptr  global_cloud_with_normal (new pcl::PointCloud<pcl::PointNormal> ());
   Eigen::Matrix4f accumulated_trans = Eigen::Matrix4f::Identity (); 
   
   // Initialze Bilateral Filter
@@ -69,7 +68,7 @@ int main (int argc, char** arg) {
   pcl::IterativeClosestPointNonLinear<pcl::PointNormal, pcl::PointNormal> icp;
   //icp.setTransformationEpsilon (1e-6);
   // Set the max correspondence distance to 5cm (e.g., correspondences with higher distances will be ignored)
-  icp.setMaxCorrespondenceDistance (0.05);
+  // icp.setMaxCorrespondenceDistance (0.05);
   // Set the maximum number of iterations (criterion 1)
   icp.setMaximumIterations (100);
   // Set the transformation epsilon (criterion 2)
@@ -100,15 +99,14 @@ int main (int argc, char** arg) {
     // Do Voxel Grid
     voxel_grid.setInputCloud (new_cloud_filtered);
     voxel_grid.filter(*new_cloud_filtered);
-    std::cout << "Done bilateral filter.\n";
+    std::cout << "Done Voxel Grid.\n";
 
     if (frame_id == 1) {
       //  If first frame then it is the Global Model
       *global_cloud = *new_cloud_filtered;
-      *last_cloud = *new_cloud_filtered;
-      norm_est.setInputCloud (last_cloud);
-      norm_est.compute (*last_cloud_with_normal);
-      pcl::copyPointCloud (*last_cloud, *last_cloud_with_normal);
+      norm_est.setInputCloud (global_cloud);
+      norm_est.compute (*global_cloud_with_normal);
+      pcl::copyPointCloud (*global_cloud, *global_cloud_with_normal);
       std::cout << "First frame added as initial global model\n";
 #ifdef VIZ
       pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBA> rgb(global_cloud);
@@ -116,7 +114,7 @@ int main (int argc, char** arg) {
       // viewer->spin();
 #endif
     } else {
-      // Match the frame to last frame 
+      // Match the frame to global model 
       // TODO: refine maximum correspondence distance each loop in ICP
 
       // Setup new cloud
@@ -127,7 +125,7 @@ int main (int argc, char** arg) {
 
       // Do Non-linear ICP
       icp.setInputSource (new_cloud_with_normal);
-      icp.setInputTarget (last_cloud_with_normal);
+      icp.setInputTarget (global_cloud_with_normal);
       pcl::PointCloud<pcl::PointNormal> Final;
       icp.align(Final);
 
@@ -144,8 +142,16 @@ int main (int argc, char** arg) {
       pcl::transformPointCloud (*new_cloud_filtered, *output, accumulated_trans);
       
       *global_cloud += *output;
-      *last_cloud = *new_cloud_filtered;
-      *last_cloud_with_normal = *new_cloud_with_normal;
+
+      // Do Voxel Grid
+      voxel_grid.setInputCloud (global_cloud);
+      voxel_grid.filter(*global_cloud);
+      std::cout << "Done Voxel Grid on Global Model.\n";
+      norm_est.setInputCloud (global_cloud);
+      norm_est.compute (*global_cloud_with_normal);
+      pcl::copyPointCloud (*global_cloud, *global_cloud_with_normal);
+
+
 #ifdef VIZ
       pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBA> rgb(global_cloud);
       viewer->removePointCloud("global model");
