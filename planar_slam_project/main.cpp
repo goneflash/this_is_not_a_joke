@@ -18,7 +18,7 @@ Data:
 #include <random>
 #include <sstream>
 #include <string>
-//#define VIZ
+#define VIZ
 
 #include <pcl/common/transforms.h>
 #include <pcl/common/time.h>
@@ -69,11 +69,11 @@ int main (int argc, char** arg) {
   pcl::IterativeClosestPointNonLinear<pcl::PointNormal, pcl::PointNormal> icp;
   //icp.setTransformationEpsilon (1e-6);
   // Set the max correspondence distance to 5cm (e.g., correspondences with higher distances will be ignored)
-  //icp.setMaxCorrespondenceDistance (0.1);
+  icp.setMaxCorrespondenceDistance (0.05);
   // Set the maximum number of iterations (criterion 1)
   icp.setMaximumIterations (100);
   // Set the transformation epsilon (criterion 2)
-  icp.setTransformationEpsilon (1e-7);
+  icp.setTransformationEpsilon (1e-10);
   // Set the euclidean distance difference epsilon (criterion 3)
   //icp.setEuclideanFitnessEpsilon (1);
 
@@ -81,11 +81,11 @@ int main (int argc, char** arg) {
   pcl::visualization::PCLVisualizer *viewer = new pcl::visualization::PCLVisualizer ("Registration");
 #endif
 
-  int frame_num = 20;
+  int frame_num = 150;
   for (int frame_id = 1; frame_id <= frame_num; ++frame_id) {
     // Get new pcd name
     std::stringstream new_pcd_file_name;
-    new_pcd_file_name << " ../data/my_room_seq/" << frame_id << ".pcd";
+    new_pcd_file_name << "../data/my_room_seq/" << frame_id << ".pcd";
     std::cout << "Reading file " << new_pcd_file_name.str() << std::endl;
     // Get new point cloud
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr new_cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
@@ -113,7 +113,7 @@ int main (int argc, char** arg) {
 #ifdef VIZ
       pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBA> rgb(global_cloud);
       viewer->addPointCloud<pcl::PointXYZRGBA> (global_cloud, rgb, "global model");
-      p->spin();
+      // viewer->spin();
 #endif
     } else {
       // Match the frame to last frame 
@@ -137,7 +137,8 @@ int main (int argc, char** arg) {
       std::cout << icp.getFinalTransformation() << std::endl;
 
       // Merge cloud to global data
-      accumulated_trans = icp.getFinalTransformation () * accumulated_trans;
+      //accumulated_trans = icp.getFinalTransformation () * accumulated_trans;
+      accumulated_trans = accumulated_trans * icp.getFinalTransformation ();
 
       pcl::PointCloud<pcl::PointXYZRGBA>::Ptr output (new pcl::PointCloud<pcl::PointXYZRGBA>);
       pcl::transformPointCloud (*new_cloud_filtered, *output, accumulated_trans);
@@ -149,10 +150,11 @@ int main (int argc, char** arg) {
       pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBA> rgb(global_cloud);
       viewer->removePointCloud("global model");
       viewer->addPointCloud<pcl::PointXYZRGBA> (global_cloud, rgb, "global model");
-      p->spin();
+      viewer->spin();
 #endif
     }    
   }
+  viewer->spin();
 
   return 0;
 }
